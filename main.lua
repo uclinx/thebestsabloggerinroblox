@@ -3,14 +3,14 @@ print("SCRIPT START OK")
 -- Gathers pet data, sends a webhook if pets meet the threshold, then hops to a new server.
 
 -- ====== CONFIG ======
-local API_POST = "https://api.pixells.sbs/ids"      -- realtime server endpoint
+local API_POST = "https://pixells-realtime.onrender.com"      -- realtime server endpoint
 local API_TOKEN = "PXL-23bda7f4-8eac-4a5a-a1d2-logger"   -- Render/VPS token
 -- ====================
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1437468340783419623/utoeRw4LzXQHq6FzTFbbKHlw8R5O55fO25ASbMCS3UNA90qOPelCDbRJFU0YyZC23lrj"
 local USERNAME = "Pixells Log"
 local EMBED_COLOR = 0xFFFFFF 
-local MINIMUM_MONEY_THRESHOLD = 10000000 -- 10M/s threshold
+local MINIMUM_MONEY_THRESHOLD = 1 -- 10M/s threshold
 
 -- === Ignore list ===
 local ignoreList = {
