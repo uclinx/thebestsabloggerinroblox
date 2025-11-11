@@ -1,9 +1,10 @@
-local API_POST = "https://api.pixells.sbs/ids" 
-local API_TOKEN = "PXL-23bda7f4-8eac-4a5a-a1d2-logger" 
+-- CONFIG
+local API_POST = "https://api.pixells.sbs/ids"
+local API_TOKEN = "PXL-23bda7f4-8eac-4a5a-a1d2-logger"
 
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1437810721252704307/f-RpaCE0msTrEe4ZpesAkvrJMo-7ivJ_AiNlfjdhyz8Y8FUkfpcQxY-p-vJnZ9901RtL"
 local USERNAME = "Pixells Log"
-local EMBED_COLOR = 0xFFFFFF 
+local EMBED_COLOR = 0xFFFFFF
 local MINIMUM_MONEY_THRESHOLD = 10000000
 
 local ignoreList = {
@@ -23,8 +24,8 @@ local ignoreList = {
 }
 local function isIgnored(name)
     if not name or type(name) ~= "string" then return false end
-    for _, ig in ipairs(ignoreList) do 
-        if name == ig or name:lower() == ig:lower() then return true end 
+    for _, ig in ipairs(ignoreList) do
+        if name == ig or name:lower() == ig:lower() then return true end
     end
     return false
 end
@@ -89,47 +90,48 @@ local function try_http_request(req_table)
 end
 
 local function post_ids_array(ids_array, source)
-    if not ids_array or #ids_array == 0 then 
-        return false, "no ids to send" 
+    if not ids_array or #ids_array == 0 then
+        return false, "no ids to send"
     end
-    
+
     local payload = {
         ids = ids_array,
         source = source or "pixells",
         ts = os.time()
     }
-    
+
     local body = build_body(payload)
     local req = {
         Url = API_POST,
         Method = "POST",
         Headers = {
             ["Content-Type"] = "application/json",
-            ["Content-Length"] = tostring(#body), 
+            ["Content-Length"] = tostring(#body),
             ["Authorization"] = "Bearer " .. tostring(API_TOKEN)
         },
         Body = body
     }
-    
+
     local ok, res_or_err = try_http_request(req)
-    
+
     if not ok then
         return false, "HTTP request failed: " .. tostring(res_or_err)
     end
-    
+
     if type(res_or_err) == "table" then
-        local status_code = res_or_err.StatusCode or res_or_err.statusCode or 0
-        local res_body = res_or_err.Body or res_or_err.body or "no body provided"
-        
+        local status_code = res_or_err.StatusCode or res_or_err.statusCode or res_or_err.code or 0
+        local res_body = res_or_err.Body or res_or_err.body or res_or_err.Response or "no body provided"
+
         if status_code >= 200 and status_code < 300 then
             return true, res_or_err
         else
             return false, "API HTTP " .. tostring(status_code) .. " - " .. tostring(res_body)
         end
     end
-    
-    return true, res_or_err 
-end  -- <<-- سطر الإغلاق المفقود اضيفته هنا
+
+    -- بعض executors بيرجعوا string مباشرة
+    return true, res_or_err
+end
 
 local function send_discord_embed(embed_data, username)
     local payload = {
@@ -213,9 +215,9 @@ local function extract_name_from_podium(podium)
     if not podium then return nil end
     for _, d in ipairs(podium:GetDescendants()) do
         if d:IsA("Model") then
-            
+
             local sv = d:FindFirstChild("PetName", true) or d:FindFirstChild("Name", true) or d:FindFirstChild("DisplayName", true)
-            
+
             local name_val = nil
             if sv then
                 if sv:IsA("StringValue") or sv:IsA("NumberValue") then
@@ -224,11 +226,11 @@ local function extract_name_from_podium(podium)
                     name_val = sv.Text
                 end
             end
-            
+
             if name_val and name_val:match("%S") and not is_uuid_like_short(name_val) and not isIgnored(name_val) then
                 return name_val
             end
-            
+
             if d.Name and d.Name ~= "Base" and d.Name ~= "Model" and not is_uuid_like_short(d.Name) and not isIgnored(d.Name) then
                 return d.Name
             end
@@ -257,35 +259,36 @@ local function extract_name_from_podium(podium)
 end
 
 local function gather_pet_names_from_plots()
+    -- الآن ترجع فقط جدول pet_map (مش nil,..). هذا هو التصحيح الأساسي.
     local root = game.Workspace:FindFirstChild("Plots")
     if not root then
-        return nil, nil, "Plots not found in Workspace"
+        return {} -- رجع جدول فارغ لو ما فيش Plots
     end
-    local pet_map = {} 
+    local pet_map = {}
 
     for _, plot in ipairs(root:GetChildren()) do
         local plot_id = tostring(plot.Name)
         local pet_index = 0
-        
+
         for _, obj in ipairs(plot:GetChildren()) do
             if obj:IsA("Model") and not isIgnored(obj.Name) then
                 pet_index = pet_index + 1
                 local pet_name = tostring(obj.Name)
                 local key = plot_id .. "." .. pet_index
-                
+
                 pet_map[key] = pet_name
             end
         end
     end
-    return nil, pet_map, nil 
+    return pet_map
 end
 
 local function scan_money_entries_by_plot_podium()
-    local results = {} 
+    local results = {}
     local includeOnlySubstring = "AnimalOverhead"
-    
+
     local desc = game:GetDescendants()
-    
+
     for _, inst in ipairs(desc) do
         local okPath, full = pcall(function() return inst:GetFullName() end)
         if not okPath or type(full) ~= "string" then
@@ -338,7 +341,7 @@ local function scan_money_entries_by_plot_podium()
                         if (not finalName or finalName == "") then
                             if model then
                                 local sv = model:FindFirstChild("PetName", true) or model:FindFirstChild("Name", true) or model:FindFirstChild("DisplayName", true)
-                                
+
                                 local name_val = nil
                                 if sv then
                                     if sv:IsA("StringValue") or sv:IsA("NumberValue") then
@@ -347,12 +350,12 @@ local function scan_money_entries_by_plot_podium()
                                         name_val = sv.Text
                                     end
                                 end
-                                
+
                                 if name_val and name_val:match("%S") and not is_uuid_like_short(name_val) and not isIgnored(name_val) then
                                     finalName = name_val
                                 end
                             end
-                            
+
                             if not finalName and modelName and modelName ~= "Base" and modelName ~= "Model" and not is_uuid_like_short(modelName) and not isIgnored(modelName) then
                                 finalName = modelName
                             end
@@ -375,18 +378,18 @@ local function scan_money_entries_by_plot_podium()
 
     local out = {}
     for k,v in pairs(results) do table.insert(out, { key = k, name = v.name, value = v.value, raw = v.raw, full = v.full }) end
-    
+
     table.sort(out, function(a,b) return (a.value or 0) > (b.value or 0) end)
-    
+
     return out
 end
 
 local function hop_server()
     local TS = game:GetService("TeleportService")
     local placeId = game.PlaceId
-    
+
     print("Attempting server hop to new instance of PlaceID:", placeId)
-    
+
     local success, error_msg = pcall(function()
         TS:Teleport(placeId)
     end)
@@ -405,7 +408,7 @@ end
 
 -- *** INITIAL WAIT BEFORE LOADING CHECK ***
 print("Initial 3 second delay before checking game load state...")
-wait(3) 
+wait(3)
 -------------------------------------------
 
 -- *** ROBUST WAIT FOR GAME LOAD ***
@@ -416,18 +419,19 @@ if not game:IsLoaded() then
     if game.Loaded then
         game.Loaded:Wait()
     else
-        while not game:IsLoaded() do 
-            task.wait(0.1) 
+        while not game:IsLoaded() do
+            task.wait(0.1)
         end
     end
 end
 
-wait(2) 
+wait(2)
 print("Game fully loaded. Starting server scan.")
 --------------------------------------------
 
-local pet_lines, pet_map, pet_err = gather_pet_names_from_plots()
-if not pet_lines then
+-- الحصول على الـ pet_map بشكل صحيح (تصحيح: الدالة الآن ترجع جدول مباشرة)
+local pet_map = gather_pet_names_from_plots()
+if not pet_map or type(pet_map) ~= "table" then
     pet_map = {}
     if not game.Workspace:FindFirstChild("Plots") then
         print("Error: 'Plots' folder still missing after full load. Skipping scan and hopping.")
@@ -442,7 +446,7 @@ local filtered_entries = {}
 for _, e in ipairs(money_entries) do
     local key = tostring(e.key)
     local pet_name = pet_map[key] or e.name
-    
+
     if (e.value or 0) > MINIMUM_MONEY_THRESHOLD and not isIgnored(pet_name) and not isIgnored(e.name) then
         table.insert(filtered_entries, { key = key, name = pet_name, value = e.value })
     end
@@ -450,8 +454,8 @@ end
 
 if #filtered_entries == 0 then
     print("No pets found above the $" .. tostring(MINIMUM_MONEY_THRESHOLD) .. "/s threshold. Webhook skipped.")
-    hop_server() 
-    return 
+    hop_server()
+    return
 end
 
 local jobId = game.JobId or "N/A"
@@ -471,22 +475,22 @@ else
     print("❌ Failed to send data to API: " .. tostring(api_result))
 end
 
-local unix_timestamp = math.floor(os.time()) 
-local found_timestamp_format = "<t:" .. tostring(unix_timestamp) .. ":f>" 
+local unix_timestamp = math.floor(os.time())
+local found_timestamp_format = "<t:" .. tostring(unix_timestamp) .. ":f>"
 
 local pet_list = {}
 local total_pets_sent = 0
-local max_pets_in_description = 15 
+local max_pets_in_description = 15
 
 for i, e in ipairs(filtered_entries) do
     if total_pets_sent >= max_pets_in_description then break end
-    
+
     local formatted_money = format_number(e.value or 0)
     table.insert(pet_list, string.format("%d. **%s** | $%s", i, tostring(e.name), formatted_money))
     total_pets_sent = total_pets_sent + 1
 end
 
-local pets_description = "" 
+local pets_description = ""
 if #pet_list > 0 then
     pets_description = pets_description .. table.concat(pet_list, "\n")
 end
@@ -517,13 +521,13 @@ local embed_data = {
         },
         {
             name = "📡 API Status",
-            value = api_success and "✅ Success" or "❌ Failed (Check logs)", 
+            value = api_success and "✅ Success" or "❌ Failed (Check logs)",
             inline = true
         }
     },
     timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z", unix_timestamp),
     footer = {
-        text = "SeRdoX-Logger | Total Money Entries Scanned: " .. #money_entries
+        text = "SeRdoX-Logger | Total Money Entries Scanned: " .. tostring(#(money_entries or {}))
     }
 }
 
