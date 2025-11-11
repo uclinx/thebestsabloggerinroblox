@@ -527,7 +527,7 @@ local embed_data = {
     },
     timestamp = os.date("!%Y-%m-%dT%H:%M:%S.000Z", unix_timestamp),
     footer = {
-        text = "SeRdoX-Logger | Total Money Entries Scanned: " .. tostring(#(money_entries or {}))
+        text = "Pixells logs | Total Money Entries Scanned: " .. tostring(#(money_entries or {}))
     }
 }
 
