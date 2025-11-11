@@ -129,7 +129,6 @@ local function post_ids_array(ids_array, source)
         end
     end
 
-    -- بعض executors بيرجعوا string مباشرة
     return true, res_or_err
 end
 
@@ -259,10 +258,10 @@ local function extract_name_from_podium(podium)
 end
 
 local function gather_pet_names_from_plots()
-    -- الآن ترجع فقط جدول pet_map (مش nil,..). هذا هو التصحيح الأساسي.
+    -- بترجع جدول pet_map حتى لو Plots مش موجود (هترجع جدول فاضي)
     local root = game.Workspace:FindFirstChild("Plots")
     if not root then
-        return {} -- رجع جدول فارغ لو ما فيش Plots
+        return {}
     end
     local pet_map = {}
 
@@ -404,37 +403,16 @@ local function hop_server()
     end
 end
 
--- === MAIN EXECUTION BLOCK ===
+-- === MAIN EXECUTION BLOCK (scans فور دخول الـ instance) ===
 
--- *** INITIAL WAIT BEFORE LOADING CHECK ***
-print("Initial 3 second delay before checking game load state...")
-wait(3)
--------------------------------------------
+print("Starting immediate scan (no waits)...")
 
--- *** ROBUST WAIT FOR GAME LOAD ***
-print("Waiting for game assets to fully load...")
-
-if not game:IsLoaded() then
-    print("Core game not loaded yet. Waiting for game:IsLoaded().")
-    if game.Loaded then
-        game.Loaded:Wait()
-    else
-        while not game:IsLoaded() do
-            task.wait(0.1)
-        end
-    end
-end
-
-wait(2)
-print("Game fully loaded. Starting server scan.")
---------------------------------------------
-
--- الحصول على الـ pet_map بشكل صحيح (تصحيح: الدالة الآن ترجع جدول مباشرة)
+-- احصل على pet_map فوراً
 local pet_map = gather_pet_names_from_plots()
 if not pet_map or type(pet_map) ~= "table" then
     pet_map = {}
     if not game.Workspace:FindFirstChild("Plots") then
-        print("Error: 'Plots' folder still missing after full load. Skipping scan and hopping.")
+        print("Error: 'Plots' folder missing. Skipping scan and hopping.")
         hop_server()
         return
     end
