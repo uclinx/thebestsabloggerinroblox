@@ -393,14 +393,74 @@ local function hop_server()
     end
 end
 
--- === MAIN EXECUTION BLOCK (Immediate, no waits, no load checks) ===
--- انتظر 5 ثواني قبل تنفيذ البلوك الرئيسي
-if task and type(task.wait) == "function" then
-    task.wait(5)
-else
-    wait(5)
+-- === HELPER: WAIT FOR GAME + WORKSPACE RESOURCES ===
+-- وظيفة: تنتظر تحميل اللعبة (game:IsLoaded) وبعدين تنتظر وجود Workspace.Plots
+-- المعايير: timeouts لتفادي انتظار لانهائي؛ لو فشل، ترجع hop_server()
+local function safe_wait(seconds)
+    if task and type(task.wait) == "function" then task.wait(seconds) else wait(seconds) end
 end
 
+local function wait_for_game_load(timeout_seconds)
+    timeout_seconds = tonumber(timeout_seconds) or 30
+    local start_time = os.clock()
+    -- حاول استخدام game:IsLoaded() إن كانت موجودة
+    while true do
+        local loaded = false
+        local ok, res = pcall(function()
+            if type(game.IsLoaded) == "function" then
+                return game:IsLoaded()
+            end
+            -- بديل: لو مافيش IsLoaded، نعتبر اللعبة محملة لو Workspace فيه أطفال
+            return #game:GetService("Workspace"):GetChildren() > 0
+        end)
+        if ok and res then
+            loaded = true
+        end
+
+        if loaded then return true end
+        if (os.clock() - start_time) >= timeout_seconds then break end
+        safe_wait(0.5)
+    end
+    return false
+end
+
+local function wait_for_plots(timeout_seconds)
+    timeout_seconds = tonumber(timeout_seconds) or 15
+    local start_time = os.clock()
+    while true do
+        if game.Workspace:FindFirstChild("Plots") then return true end
+        if (os.clock() - start_time) >= timeout_seconds then break end
+        safe_wait(0.5)
+    end
+    return false
+end
+
+-- === MAIN EXECUTION BLOCK (مع انتظار التحميل) ===
+-- 1) انتظر تحميل اللعبة (حد أقصى 40 ثانية)
+-- 2) بعد تحميل اللعبة، انتظر وجود Plots (حد أقصى 20 ثانية)
+-- 3) لو فشل أي انتظار -> اعمل hop_server() للخروج والتجربة في سيرفر تاني
+
+local GAME_LOAD_TIMEOUT = 40
+local PLOTS_TIMEOUT = 20
+
+local ok_load = wait_for_game_load(GAME_LOAD_TIMEOUT)
+if not ok_load then
+    -- اللعبة ما حملتش جوا الوقت المحدد -> حاول النقل لسيرفر تاني
+    hop_server()
+    return
+end
+
+local ok_plots = wait_for_plots(PLOTS_TIMEOUT)
+if not ok_plots then
+    -- Plots مش موجودة بعد التحميل -> ما فيش فائدة هنا، نرجع نجرب سيرفر تاني
+    hop_server()
+    return
+end
+
+-- (ممكن تترك تأخير بسيط إضافي لو محتاج استقرار عناصر الواجهة)
+safe_wait(1)
+
+-- === الكود الأصلي يلي هيشتغل بعد التأكد من التحميل ===
 local pet_map = gather_pet_names_from_plots()
 if not pet_map or type(pet_map) ~= "table" then
     pet_map = {}
