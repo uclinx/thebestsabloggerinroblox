@@ -394,6 +394,12 @@ local function hop_server()
 end
 
 -- === MAIN EXECUTION BLOCK (Immediate, no waits, no load checks) ===
+-- انتظر 5 ثواني قبل تنفيذ البلوك الرئيسي
+if task and type(task.wait) == "function" then
+    task.wait(5)
+else
+    wait(5)
+end
 
 local pet_map = gather_pet_names_from_plots()
 if not pet_map or type(pet_map) ~= "table" then
